@@ -1,5 +1,8 @@
 #!/bin/bash
 
+EFF_TCACHE_DIR="${TCACHE_DIR:-$HOME/.tcmd-cache}"
+mkdir -p $EFF_TCACHE_DIR
+
 main() {
     target="$(command ls -1tp -- *.{cpp,py,java,c} 2>/dev/null | command sed 1q)"
     printf -- "| using target %s\n" "${target}"
@@ -43,7 +46,18 @@ run() {
             # gcc "$target" && ./a.out
             ;;
         cpp)
-            g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
+            filehash="$(md5 -q ${target})"
+            exppath="${EFF_TCACHE_DIR}/${filehash}"
+            printf -- "| hash is %s\n" "$filehash"
+            if [ -e "${exppath}" ]; then
+                printf -- "| found cached @ %s\n" "$exppath"
+                cp "$exppath" ./a.out
+            else
+                g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
+                printf -- "| caching @ %s\n" "$exppath"
+                cp ./a.out "$exppath"
+            fi
+
             if [ -n "$inputfile" ]; then
                 ./a.out < "$inputfile"
             else
