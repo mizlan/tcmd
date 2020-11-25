@@ -1,7 +1,7 @@
 #!/bin/bash
 
 main() {
-    target="$(command ls -1tp -- *.{cpp,py,java,c} | command sed 1q)"
+    target="$(command ls -1tp -- *.{cpp,py,java,c} 2>/dev/null | command sed 1q)"
     printf -- "| using target %s\n" "${target}"
     base="${target%.*}"
     printf -- "| using base %s\n" "${base}"
@@ -29,6 +29,9 @@ check() {
     shift $((OPTIND -1))
     if [ "$inputfile" = "" ]; then
         printf -- '| no input file given\n'
+    elif [ ! -f "$inputfile" ]; then
+        printf -- '| %s does not exist, resorting to stdin\n' "$inputfile"
+        inputfile=""
     else
         printf -- "| inputfile is %s\n" "${inputfile}"
     fi
@@ -37,10 +40,15 @@ check() {
 run() {
     case "$extension" in
         c)
-            gcc "$target" && ./a.out
+            # gcc "$target" && ./a.out
             ;;
         cpp)
-            g++-10 -DFEAST_LOCAL -std=c++11 "$target" && ./a.out
+            g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
+            if [ -n "$inputfile" ]; then
+                ./a.out < "$inputfile"
+            else
+                ./a.out
+            fi
             ;;
         java)
             javac "$target" && java "$base"
