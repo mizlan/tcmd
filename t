@@ -11,7 +11,6 @@ main() {
     extension="${target##*.}"
     printf -- "| using extension %s\n" "${extension}"
 
-    check "$@"
     run
 }
 
