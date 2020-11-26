@@ -37,7 +37,7 @@ check() {
     while getopts ":vci:" opt; do
         case "$opt" in
             i)
-                printf "input file %s\n" "$opt"
+                verbose_print "input file %s\n" "$opt"
                 inputfile="$OPTARG"
                 ;;
             v)
