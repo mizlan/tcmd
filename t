@@ -58,7 +58,7 @@ check() {
 run() {
     case "$extension" in
         c)
-            filehash="$(md5 -q ${target})"
+            filehash=$(md5sum "${target}" | awk '{ print $1 }')
             exppath="${EFF_TCACHE_DIR}/${filehash}"
             verbose_print "hash is %s\n" "$filehash"
             if [ -e "${exppath}" ] && [ -z "${CACHE_OFF}" ]; then
@@ -82,7 +82,7 @@ run() {
             ;;
 
         cpp)
-            filehash="$(md5 -q ${target})"
+            filehash=$(md5sum "${target}" | awk '{ print $1 }')
             exppath="${EFF_TCACHE_DIR}/${filehash}"
             verbose_print "hash is %s\n" "$filehash"
             if [ -e "${exppath}" ] && [ -z "${CACHE_OFF}" ]; then
@@ -106,7 +106,7 @@ run() {
             ;;
 
         java)
-            filehash=$(md5sum "${target}" awk '{ print $1 }')
+            filehash=$(md5sum "${target}" | awk '{ print $1 }')
             exppath="${EFF_TCACHE_DIR}/${filehash}"
             verbose_print "hash is %s\n" "$filehash"
             if [ -e "${exppath}" ] && [ -z "${CACHE_OFF}" ]; then
