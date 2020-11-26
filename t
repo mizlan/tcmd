@@ -1,26 +1,39 @@
 #!/bin/bash
 
 EFF_TCACHE_DIR="${TCACHE_DIR:-$HOME/.tcmd-cache}"
-mkdir -p $EFF_TCACHE_DIR
+mkdir -p "$EFF_TCACHE_DIR"
 
 main() {
-    target="$(command ls -1tp -- *.{cpp,py,java,c} 2>/dev/null | command sed 1q)"
-    printf -- "| using target %s\n" "${target}"
+    target="$(command ls -1tp -- *.{cpp,py,java,c,ml} 2>/dev/null | command sed 1q)"
+    check "$@"
+
+    verbose_print "| using target %s\n" "${target}"
     base="${target%.*}"
-    printf -- "| using base %s\n" "${base}"
+    verbose_print "| using base %s\n" "${base}"
     extension="${target##*.}"
-    printf -- "| using extension %s\n" "${extension}"
+    verbose_print "| using extension %s\n" "${extension}"
+    if [ "$inputfile" = "" ]; then
+        verbose_print '| no input file given\n'
+    elif [ ! -f "$inputfile" ]; then
+        verbose_print '| %s does not exist, resorting to stdin\n' "$inputfile"
+        inputfile=""
+    else
+        verbose_print "| inputfile is %s\n" "${inputfile}"
+    fi
 
     run
 }
 
 check() {
     local OPTIND opt
-    while getopts ":i:" opt; do
+    while getopts ":vi:" opt; do
         case "$opt" in
             i)
                 printf "| input file %s\n" "$opt"
                 inputfile="$OPTARG"
+                ;;
+            v)
+                VERBOSE="verbose"
                 ;;
             \?)
                 print_help
@@ -29,54 +42,95 @@ check() {
         esac
     done
     shift $((OPTIND -1))
-    if [ "$inputfile" = "" ]; then
-        printf -- '| no input file given\n'
-    elif [ ! -f "$inputfile" ]; then
-        printf -- '| %s does not exist, resorting to stdin\n' "$inputfile"
-        inputfile=""
-    else
-        printf -- "| inputfile is %s\n" "${inputfile}"
-    fi
 }
 
 run() {
     case "$extension" in
         c)
-            # gcc "$target" && ./a.out
-            ;;
-        cpp)
             filehash="$(md5 -q ${target})"
             exppath="${EFF_TCACHE_DIR}/${filehash}"
-            printf -- "| hash is %s\n" "$filehash"
+            verbose_print "| hash is %s\n" "$filehash"
             if [ -e "${exppath}" ]; then
-                printf -- "| found cached @ %s\n" "$exppath"
+                verbose_print "| found cached @ %s\n" "$exppath"
                 cp "$exppath" ./a.out
             else
-                g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
-                printf -- "| caching @ %s\n" "$exppath"
+                gcc "$target" || exit $?
+                verbose_print "| caching @ %s\n" "$exppath"
                 cp ./a.out "$exppath"
             fi
 
+            verbose_print "| running executable\n"
             if [ -n "$inputfile" ]; then
                 ./a.out < "$inputfile"
             else
                 ./a.out
             fi
             ;;
-        java)
-            javac "$target" && java "$base"
+
+        cpp)
+            filehash="$(md5 -q ${target})"
+            exppath="${EFF_TCACHE_DIR}/${filehash}"
+            verbose_print "| hash is %s\n" "$filehash"
+            if [ -e "${exppath}" ]; then
+                verbose_print "| found cached @ %s\n" "$exppath"
+                cp "$exppath" ./a.out
+            else
+                g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
+                verbose_print "| caching @ %s\n" "$exppath"
+                cp ./a.out "$exppath"
+            fi
+
+            verbose_print "| running executable\n"
+            if [ -n "$inputfile" ]; then
+                ./a.out < "$inputfile"
+            else
+                ./a.out
+            fi
             ;;
+
+        java)
+            filehash=$(md5sum "${target}" | awk '{ print $1 }')
+            exppath="${EFF_TCACHE_DIR}/${filehash}"
+            verbose_print "| hash is %s\n" "$filehash"
+            if [ -e "${exppath}" ]; then
+                verbose_print "| found cached @ %s\n" "$exppath"
+                cp "$exppath" "${base}.class"
+            else
+                javac "$target" || exit $?
+                verbose_print "| caching @ %s\n" "$exppath"
+                cp "${base}.class" "$exppath"
+            fi
+
+            verbose_print "| running executable\n"
+            if [ -n "$inputfile" ]; then
+                java "$base" < "$inputfile"
+            else
+                java "$base"
+            fi
+            ;;
+
         py)
+            # no caching options available
             python "$target"
             ;;
+
         *)
-            printf -- "no good procedure found\n"
+            printf -- "[!] no good procedure found, or not implemented: extension %s\n" "$extension" 1>&2
+            exit 1;
             ;;
     esac
 }
 
 print_help() {
-    printf -- '-i <input file>\n'
+    printf -- 'usage:\n'
+    printf -- '  -i <input file>\n'
+    printf -- '  -v (verbose)\n'
+}
+
+verbose_print() {
+    if [ -n "$VERBOSE" ]; then
+        printf -- "$@"
+    fi
 }
 
 main "$@"
