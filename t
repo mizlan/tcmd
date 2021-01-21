@@ -2,7 +2,7 @@
 
 main() {
     check "$@"
-    target="$(command ls -1tp -- *.{cpp,py,java,c,ml} 2>/dev/null | command sed 1q)"
+    target="$(command ls -1tp -- *.{cpp,py,java,c,ml,hs} 2>/dev/null | command sed 1q)"
     base="${target%.*}"
     extension="${target##*.}"
 
@@ -90,7 +90,7 @@ run() {
                 cp "$exppath" ./a.out
             else
                 verbose_print "building\n"
-                g++-10 -DFEAST_LOCAL -std=c++11 "$target" || exit $?
+                g++-10 -Wall -Wextra -pedantic -std=c++11 -O2 -Wshadow -Wformat=2 -Wfloat-equal -Wconversion -Wlogical-op -Wshift-overflow=2 -Wduplicated-cond -Wcast-qual -Wcast-align -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2 -fsanitize=address -fsanitize=undefined -fno-sanitize-recover -fstack-protector -DFEAST_LOCAL -DFLOCAL "$target" || exit $?
                 if [ -z "${CACHE_OFF}" ]; then
                     verbose_print "caching @ %s\n" "$exppath"
                     cp ./a.out "$exppath"
@@ -132,7 +132,11 @@ run() {
 
         py)
             # no caching options available
-            python "$target"
+            if [ -n "$inputfile" ]; then
+                python $target < "$inputfile"
+            else
+                python $target
+            fi
             ;;
 
         *)
